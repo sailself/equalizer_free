@@ -1,6 +1,10 @@
 name: Release APK
 
-on: workflow_dispatch
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+'
+      - 'v[0-9]+.[0-9]+.[0-9]+'
 
 permissions:
   contents: read
@@ -14,17 +18,47 @@ defaults:
     shell: bash
 
 jobs:
+  verify-tag:
+    name: Verify release tag
+    if: github.event.created && github.actor == github.repository_owner && github.triggering_actor == github.repository_owner
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      commit: ${{ steps.verify.outputs.commit }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Check that the tag points to a commit on main
+        id: verify
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          if [[ ! "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]; then
+            echo "::error::Expected a release tag named vMAJOR.MINOR[.PATCH]."
+            exit 1
+          fi
+          commit=$(git rev-parse "refs/tags/$RELEASE_TAG^{commit}")
+          if [[ "$commit" != "$(git rev-parse HEAD)" ]] ||
+             ! git merge-base --is-ancestor "$commit" refs/remotes/origin/main; then
+            echo "::error::The release tag must point to the checked-out commit on main."
+            exit 1
+          fi
+          printf 'commit=%s\n' "$commit" >> "$GITHUB_OUTPUT"
+
   sign:
     name: Build and verify signed APK
-    if: github.ref == 'refs/heads/main' && github.actor == github.repository_owner && github.triggering_actor == github.repository_owner
+    needs: verify-tag
     runs-on: ubuntu-24.04
     environment: release
     timeout-minutes: 25
     outputs:
-      tag: ${{ steps.sign.outputs.tag }}
+      signed: ${{ steps.sign.outputs.signed }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ needs.verify-tag.outputs.commit }}
           persist-credentials: false
       - uses: ./.github/actions/setup-android
         with:
@@ -32,6 +66,7 @@ jobs:
       - name: Build and verify the signed release
         id: sign
         env:
+          RELEASE_TAG: ${{ github.ref_name }}
           QUIET_EQ_KEYSTORE_BASE64: ${{ secrets.QUIET_EQ_KEYSTORE_BASE64 }}
           QUIET_EQ_KEY_ALIAS: ${{ secrets.QUIET_EQ_KEY_ALIAS }}
           QUIET_EQ_STORE_PASSWORD: ${{ secrets.QUIET_EQ_STORE_PASSWORD }}
@@ -39,6 +74,11 @@ jobs:
           QUIET_EQ_SIGNING_CERT_SHA256: ${{ vars.QUIET_EQ_SIGNING_CERT_SHA256 }}
         run: |
           set -u
+          if [[ -z "$QUIET_EQ_KEYSTORE_BASE64" && -z "$QUIET_EQ_KEY_ALIAS" &&
+                -z "$QUIET_EQ_STORE_PASSWORD" && -z "$QUIET_EQ_KEY_PASSWORD" ]]; then
+            echo "::notice::Hosted signing is unset. The verified tag is ready for local signing and upload."
+            exit 0
+          fi
           for name in QUIET_EQ_KEYSTORE_BASE64 QUIET_EQ_KEY_ALIAS QUIET_EQ_STORE_PASSWORD QUIET_EQ_KEY_PASSWORD QUIET_EQ_SIGNING_CERT_SHA256; do
             if [[ -z "${!name:-}" ]]; then
               echo "::error::Configure $name in the release environment to enable hosted signing."
@@ -65,8 +105,8 @@ jobs:
 
           version=$("$build_tools/aapt2" dump badging "$apk" |
             sed -nE "s/^package: name='com[.]quieteq[.]app' versionCode='[1-9][0-9]*' versionName='([0-9]+[.][0-9]+([.][0-9]+)?)'.*/\1/p")
-          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]; then
-            echo "::error::The release APK must have a positive version code and a numeric MAJOR.MINOR[.PATCH] version name."
+          if [[ -z "$version" || "v$version" != "$RELEASE_TAG" ]]; then
+            echo "::error::The APK must have a positive version code and a version name matching $RELEASE_TAG."
             exit 1
           fi
 
@@ -75,8 +115,9 @@ jobs:
           name="Quiet-EQ-${version}.apk"
           cp "$apk" "$dist/$name"
           (cd "$dist" && sha256sum "$name" > "$name.sha256")
-          echo "tag=v$version" >> "$GITHUB_OUTPUT"
+          echo 'signed=true' >> "$GITHUB_OUTPUT"
       - name: Upload signed APK and checksum
+        if: steps.sign.outputs.signed == 'true'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: quiet-eq-release
@@ -86,7 +127,8 @@ jobs:
 
   publish:
     name: Publish GitHub release
-    needs: sign
+    needs: [verify-tag, sign]
+    if: needs.sign.outputs.signed == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
@@ -100,7 +142,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-          RELEASE_TAG: ${{ needs.sign.outputs.tag }}
+          RELEASE_TAG: ${{ github.ref_name }}
+          RELEASE_COMMIT: ${{ needs.verify-tag.outputs.commit }}
         run: |
           set -u
           cd "$RUNNER_TEMP/quiet-eq-release"
@@ -116,8 +159,8 @@ jobs:
           }
 
           target=$(tag_commit)
-          if [[ -n "$target" && "$target" != "$GITHUB_SHA" ]]; then
-            echo "::error::$RELEASE_TAG already points to a different commit. Choose a new version."
+          if [[ "$target" != "$RELEASE_COMMIT" ]]; then
+            echo "::error::$RELEASE_TAG no longer points to the verified commit."
             exit 1
           fi
 
@@ -127,13 +170,10 @@ jobs:
 
           published=false
           if [[ -z "$release" ]]; then
-            gh release create "$RELEASE_TAG" --draft --target "$GITHUB_SHA" \
+            gh release create "$RELEASE_TAG" --draft --verify-tag \
               --title "Quiet EQ ${RELEASE_TAG#v}" --generate-notes
           elif [[ "$(jq -r '.draft' <<< "$release")" == false ]]; then
             published=true
-          elif [[ "$(jq -r '.target_commitish' <<< "$release")" != "$GITHUB_SHA" ]]; then
-            echo "::error::The existing draft does not target this commit."
-            exit 1
           fi
 
           if [[ "$published" == false ]]; then
@@ -141,7 +181,7 @@ jobs:
             gh release edit "$RELEASE_TAG" --draft=false
           fi
 
-          if [[ "$(tag_commit)" != "$GITHUB_SHA" ]]; then
+          if [[ "$(tag_commit)" != "$RELEASE_COMMIT" ]]; then
             echo "::error::The published tag does not point to the release commit."
             exit 1
           fi

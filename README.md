@@ -48,11 +48,19 @@ A debug installation and a release installation have different signing keys. Exp
 
 ## Publish a release
 
-For a new version, update `versionName` and increment `versionCode` in `app/build.gradle.kts`. Merge the version change through a pull request and check CI for that commit. The release tag uses the APK version, for example `v1.1.0`.
+For a new version, update `versionName` and increment `versionCode` in `app/build.gradle.kts`. Merge the version change through a pull request and check CI for that commit. From the updated `main` checkout, push a tag that matches the version name. Only the repository owner can push release tags.
+
+```powershell
+$version = '1.1.0'
+git tag -a "v$version" -m "Quiet EQ $version"
+git push origin "refs/tags/v$version"
+```
+
+The tag starts **Release APK**. The workflow checks that the commit is on `main`. With hosted signing configured, it builds and publishes the signed APK. With the signing secrets empty, it verifies the tag and leaves the build and upload to the local workflow below.
 
 ### Sign locally and upload
 
-Use this path to keep the signing key on your workstation. Run from the updated `main` checkout and use a new version tag.
+Use this path to keep the signing key on your workstation. Build from the same `main` commit you tagged.
 
 ```powershell
 $ErrorActionPreference = 'Stop'
@@ -64,18 +72,18 @@ New-Item -ItemType Directory -Path artifacts -Force | Out-Null
 Copy-Item -LiteralPath app/build/outputs/apk/release/app-release.apk -Destination $apk
 $digest = (Get-FileHash -LiteralPath $apk -Algorithm SHA256).Hash.ToLowerInvariant()
 "$digest  $name" | Set-Content -LiteralPath "$apk.sha256" -Encoding ascii
-gh release create "v$version" $apk "$apk.sha256" --target (git rev-parse HEAD) --generate-notes
+gh release create "v$version" $apk "$apk.sha256" --verify-tag --generate-notes
 ```
 
 ### Sign and publish on GitHub Actions
 
-Restrict the GitHub Actions environment named `release` to the `main` branch. Add the following secrets to that environment using the existing release key.
+The GitHub Actions environment named `release` allows owner-controlled `v*` tags. Add the following secrets to that environment using the existing release key.
 
 - `QUIET_EQ_KEYSTORE_BASE64` contains the base64-encoded keystore file.
 - `QUIET_EQ_KEY_ALIAS` identifies the release key.
 - `QUIET_EQ_STORE_PASSWORD` and `QUIET_EQ_KEY_PASSWORD` unlock the keystore and key.
 
-Set the environment variable `QUIET_EQ_SIGNING_CERT_SHA256` to the public certificate fingerprint reported by `apksigner verify --print-certs` on a known-good release APK. Then run **Actions → Release APK → Run workflow** on `main` as the repository owner. The workflow verifies the signing certificate, publishes the APK and its SHA-256 file, and checks both the release tag and the downloaded APK.
+Set the environment variable `QUIET_EQ_SIGNING_CERT_SHA256` to the public certificate fingerprint reported by `apksigner verify --print-certs` on a known-good release APK. Push a matching tag when you are ready to publish. The workflow verifies the APK version and signing certificate, publishes the APK and its SHA-256 file, and checks both the release tag and the downloaded APK.
 
 ## Structure and verification
 
