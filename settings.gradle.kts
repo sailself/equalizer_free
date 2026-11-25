@@ -1,7 +1,14 @@
 pluginManagement {
     repositories {
-        google()
-        mavenCentral { url = uri("https://repo1.maven.org/maven2/") }
+        google {
+            content {
+                includeGroupAndSubgroups("androidx")
+                includeGroupAndSubgroups("com.android")
+                includeGroupAndSubgroups("com.google.android")
+                includeGroupAndSubgroups("com.google.testing.platform")
+            }
+        }
+        mavenCentral { url = uri("https://maven-central.storage-download.googleapis.com/maven2/") }
         gradlePluginPortal()
     }
 }
@@ -9,8 +16,15 @@ pluginManagement {
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
-        google()
-        mavenCentral { url = uri("https://repo1.maven.org/maven2/") }
+        google {
+            content {
+                includeGroupAndSubgroups("androidx")
+                includeGroupAndSubgroups("com.android")
+                includeGroupAndSubgroups("com.google.android")
+                includeGroupAndSubgroups("com.google.testing.platform")
+            }
+        }
+        mavenCentral { url = uri("https://maven-central.storage-download.googleapis.com/maven2/") }
     }
 }
 
