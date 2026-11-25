@@ -1,0 +1,176 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name" translatable="false">Quiet EQ</string>
+    <string name="nav_sound">Sound</string>
+    <string name="nav_profiles">Profiles</string>
+    <string name="nav_settings">Settings</string>
+
+    <string name="settings_kicker">Fine tune</string>
+    <string name="settings_subtitle">Make Quiet EQ feel like yours.</string>
+    <string name="appearance">Appearance</string>
+    <string name="theme">Theme</string>
+    <string name="theme_dark">Dark</string>
+    <string name="theme_light">Light</string>
+    <string name="theme_system">System</string>
+    <string name="color_scheme">Color scheme</string>
+    <string name="palette_original">Original</string>
+    <string name="palette_ocean">Ocean</string>
+    <string name="palette_forest">Forest</string>
+    <string name="palette_lavender">Lavender</string>
+    <string name="language">Language</string>
+    <string name="language_device">Use device language</string>
+    <string name="show_media_volume">Show media volume</string>
+    <string name="show_media_volume_description">Control the system media volume on Sound.</string>
+    <string name="show_reverb">Show reverb information</string>
+    <string name="show_reverb_description">See why reverb is unavailable.</string>
+    <string name="audio_engine">Audio engine</string>
+    <string name="attachment_mode">Attachment mode</string>
+    <string name="attachment_mode_description">Auto is recommended. Global attachment is experimental and may not affect every player.</string>
+    <string name="attachment_auto">Auto</string>
+    <string name="attachment_players">Players only</string>
+    <string name="attachment_global">Global (experimental)</string>
+    <string name="prefer_legacy">Prefer legacy effects</string>
+    <string name="prefer_legacy_description">Use the legacy equalizer when available.</string>
+    <string name="auto_headroom">Auto headroom</string>
+    <string name="auto_headroom_description">Reduce clipping when boosting frequencies.</string>
+    <string name="processing_frame">Processing frame</string>
+    <string name="milliseconds" translatable="false">%1$d ms</string>
+    <string name="system">System</string>
+    <string name="system_description">Android controls notifications and battery restrictions.</string>
+    <string name="notification_settings">Notification settings</string>
+    <string name="app_battery_settings">App and battery settings</string>
+
+    <string name="sound_kicker">Your sound, your way</string>
+    <string name="sound_subtitle">Shape the sound around you.</string>
+    <string name="preset_flat">Flat</string>
+    <string name="preset_bass_boost">Bass Boost</string>
+    <string name="preset_treble_boost">Treble Boost</string>
+    <string name="preset_vocal">Vocal</string>
+    <string name="preset_balanced">Balanced</string>
+    <string name="preset_curve">%1$s curve</string>
+    <string name="custom_sound">Custom sound</string>
+    <string name="engine_on">Engine on</string>
+    <string name="engine_off">Engine off</string>
+    <string name="status_stopped">Stopped</string>
+    <string name="status_starting">Starting audio service</string>
+    <string name="status_waiting">Waiting for a playback session</string>
+    <string name="status_global">Global effect attached. Playback support varies by device.</string>
+    <string name="status_bypassed">Bypassed</string>
+    <string name="status_degraded">Some sessions or settings could not be applied</string>
+    <string name="status_control_lost">Another app controls an audio effect</string>
+    <string name="status_start_failed">Could not start the audio service or load settings</string>
+    <string name="status_attach_failed">No audio effect could be attached</string>
+    <string name="backend_dynamics">Dynamics Processing</string>
+    <string name="backend_legacy">Legacy Equalizer</string>
+    <string name="backend_mixed">Mixed</string>
+    <string name="equalizer">Equalizer</string>
+    <string name="equalizer_enabled">Equalizer enabled</string>
+    <string name="eq_subtitle">10-band tone shaping</string>
+    <string name="device_bands">Device bands: %1$s Hz</string>
+    <string name="device_gain_range">Device gain range: %1$s to %2$s dB. Values outside this range are limited.</string>
+    <string name="eq_curve_description">Equalizer curve, select a frequency below to adjust</string>
+    <string name="frequency_hz" translatable="false">%1$d Hz</string>
+    <string name="frequency_khz" translatable="false">%1$d kHz</string>
+    <string name="gain_db" translatable="false">%1$s dB</string>
+    <string name="gain_slider">Gain at %1$d Hz</string>
+    <string name="selected_band">Selected band</string>
+    <string name="previous_band">Previous frequency band</string>
+    <string name="next_band">Next frequency band</string>
+    <string name="reset_equalizer">Reset equalizer</string>
+    <string name="sound_enhancements">Sound enhancements</string>
+    <string name="device_dependent">DEVICE DEPENDENT</string>
+    <string name="bass">Bass</string>
+    <string name="loudness">Loudness</string>
+    <string name="balance">Balance</string>
+    <string name="center">Center</string>
+    <string name="balance_left">L %1$d</string>
+    <string name="balance_right">R %1$d</string>
+    <string name="virtualizer">Virtualizer</string>
+    <string name="virtualizer_toggle_only">This device supports on or off only.</string>
+    <string name="enhancements_start_engine">Start the engine to check which enhancements are available.</string>
+    <string name="reverb_unavailable">Reverb is unavailable because playback apps must provide their own reverb send.</string>
+    <string name="unavailable">Unavailable</string>
+    <string name="media_volume">Media volume</string>
+    <string name="system_tag">SYSTEM</string>
+    <string name="volume">Volume</string>
+    <string name="percent">%1$d%%</string>
+
+    <string name="profiles_kicker">Make it yours</string>
+    <string name="profiles_subtitle">Save a sound for every moment.</string>
+    <string name="starting_points">Starting points</string>
+    <string name="presets_tag">PRESETS</string>
+    <string name="presets_description">Choose a curve, then make it your own.</string>
+    <string name="your_profiles">Your profiles</string>
+    <string name="your_profiles_description">Keep your favorite settings close.</string>
+    <string name="no_profiles">No saved profiles yet. Save your current sound to get started.</string>
+    <string name="save">Save</string>
+    <string name="profile_selected">Selected</string>
+    <string name="tap_to_load">Tap to load</string>
+    <string name="profile_options">Options for %1$s</string>
+    <string name="rename">Rename</string>
+    <string name="duplicate">Duplicate</string>
+    <string name="profile_copy">%1$s copy</string>
+    <string name="assign_bluetooth">Assign to Bluetooth device</string>
+    <string name="delete">Delete</string>
+    <string name="bluetooth_profiles">Bluetooth profiles</string>
+    <string name="bluetooth_stopped">Turn on the engine to use device assignments.</string>
+    <string name="bluetooth_permission_required">Nearby devices permission is required for automatic profiles.</string>
+    <string name="bluetooth_waiting">Checking connected audio devices…</string>
+    <string name="bluetooth_no_device">No paired audio device is connected.</string>
+    <string name="bluetooth_multiple_devices">Multiple audio devices are connected. Automatic selection is paused.</string>
+    <string name="bluetooth_connected">An audio device is connected. Its assigned profile loads automatically.</string>
+    <string name="bluetooth_assignment_tip">Use the menu on a saved profile to assign it to a paired device.</string>
+    <string name="backup">Backup</string>
+    <string name="backup_description">Move your profiles and settings to another device.</string>
+    <string name="export_backup_button">Export</string>
+    <string name="import_backup_button">Import</string>
+    <string name="save_profile">Save profile</string>
+    <string name="rename_profile">Rename profile</string>
+    <string name="profile_name">Profile name</string>
+    <string name="cancel">Cancel</string>
+    <string name="delete_profile_title">Delete %1$s?</string>
+    <string name="delete_profile_description">This removes the saved profile and its device assignments.</string>
+    <string name="bluetooth_device">Bluetooth device</string>
+    <string name="assign_profile">Assign %1$s</string>
+    <string name="assign_profile_description">Load this profile when a paired device connects while the engine is on.</string>
+    <string name="allow_nearby_devices">Allow nearby devices</string>
+    <string name="no_paired_devices">No paired Bluetooth devices found.</string>
+    <string name="assign_device">Assign %1$s</string>
+    <string name="done">Done</string>
+
+    <string name="notification_channel">Audio equalizer</string>
+    <string name="notification_running">Quiet EQ is running</string>
+    <string name="notification_active">Audio processing active where supported</string>
+    <string name="notification_bypassed">Audio processing bypassed</string>
+    <string name="resume">Resume</string>
+    <string name="bypass">Bypass</string>
+    <string name="stop">Stop</string>
+
+    <string name="open_document_failed">Unable to open document</string>
+    <string name="backup_exported">Backup exported</string>
+    <string name="backup_imported">Backup imported</string>
+    <string name="backup_too_large">Backup is too large</string>
+    <string name="export_failed">Export failed: %1$s</string>
+    <string name="import_failed">Import failed: %1$s</string>
+    <string name="save_failed">Could not save changes: %1$s</string>
+    <string name="unknown_error">Unknown error</string>
+    <string name="invalid_backup">Invalid backup</string>
+    <string name="load_settings_failed">Could not load settings</string>
+    <string name="retry">Retry</string>
+    <string name="import_backup">Import backup</string>
+
+    <plurals name="eq_mapped_bands">
+        <item quantity="one">10-band curve mapped to %1$d device band</item>
+        <item quantity="other">10-band curve mapped to %1$d device bands</item>
+    </plurals>
+
+    <plurals name="session_count">
+        <item quantity="one">%1$d session</item>
+        <item quantity="other">%1$d sessions</item>
+    </plurals>
+
+    <plurals name="status_player_sessions">
+        <item quantity="one">Attached to %1$d playback session</item>
+        <item quantity="other">Attached to %1$d playback sessions</item>
+    </plurals>
+</resources>

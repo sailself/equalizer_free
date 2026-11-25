@@ -12,6 +12,8 @@ Build an APK using the instructions below. Local APKs, device captures, and sign
 4. Choose a preset, adjust the ten-band curve or selected-band slider, and save your sound under Profiles.
 5. To avoid doubled processing, bypass other equalizers during listening comparisons.
 
+Under **Settings → Appearance**, choose Original, Ocean, Forest, or Lavender and select Dark, Light, or System mode. Quiet EQ follows your device language by default. You can also choose English, Spanish, French, Japanese, Simplified Chinese, or Traditional Chinese there.
+
 Automatic mode prefers player-announced sessions, with best-effort global fallback. Players-only and experimental global modes are available in Settings. Attachment does **not** prove a particular player is being processed: compare the sound using bypass. Android cannot guarantee effects on every application, route, call, or cast stream.
 
 The modern backend uses DynamicsProcessing; the fallback maps the ten-band curve onto the actual bands reported by the legacy equalizer. Optional effects are capability-dependent. Reverb is unavailable because the standard public auxiliary API requires cooperation from the playback app. Bluetooth assignments apply while the engine is running, only when a connected audio device is unambiguous. Profiles do not change device volume.

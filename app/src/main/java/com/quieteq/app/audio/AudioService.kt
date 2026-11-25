@@ -6,12 +6,17 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
 import android.content.Intent
+import android.content.res.Configuration
+import android.content.res.Resources
 import android.os.IBinder
 import android.util.Log
+import androidx.core.content.ContextCompat
 import com.quieteq.app.MainActivity
+import com.quieteq.app.R
 import com.quieteq.app.data.BluetoothProfilesMonitor
 import com.quieteq.app.data.BluetoothMonitorState
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import com.quieteq.app.data.DataStoreSettingsRepository
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -30,6 +35,7 @@ class AudioService : Service() {
         const val BYPASS = "com.quieteq.app.BYPASS"
         const val REFRESH = "com.quieteq.app.REFRESH"
         internal val bluetoothState = MutableStateFlow(BluetoothMonitorState.STOPPED)
+        internal val notificationLocaleChanged = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
         private const val CHANNEL = "equalizer"
     }
     private var bypassed = false
@@ -43,7 +49,22 @@ class AudioService : Service() {
 
     override fun onCreate() {
         super.onCreate()
-        getSystemService(NotificationManager::class.java).createNotificationChannel(NotificationChannel(CHANNEL, "Audio equalizer", NotificationManager.IMPORTANCE_LOW))
+        updateNotificationLanguage()
+        scope.launch { notificationLocaleChanged.collect { updateNotificationLanguage() } }
+    }
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        updateNotificationLanguage()
+    }
+
+    private fun updateNotificationLanguage() {
+        val strings = ContextCompat.getContextForLanguage(this).resources
+        val manager = getSystemService(NotificationManager::class.java)
+        manager.createNotificationChannel(
+            NotificationChannel(CHANNEL, strings.getString(R.string.notification_channel), NotificationManager.IMPORTANCE_LOW)
+        )
+        if (started) manager.notify(1, notification(strings))
     }
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
@@ -105,11 +126,17 @@ class AudioService : Service() {
         stopSelf()
     }
     private fun action(action: String, code: Int): PendingIntent = PendingIntent.getService(this, code, Intent(this, AudioService::class.java).setAction(action), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-    private fun notification(): Notification {
+    private fun notification(strings: Resources = ContextCompat.getContextForLanguage(this).resources): Notification {
         val content = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-        return Notification.Builder(this, CHANNEL).setSmallIcon(android.R.drawable.ic_media_play).setContentTitle("Quiet EQ is running").setContentText(if (bypassed) "Audio processing bypassed" else "Audio processing active where supported").setContentIntent(content).setOngoing(true)
-            .addAction(Notification.Action.Builder(null, if (bypassed) "Resume" else "Bypass", action(BYPASS, 1)).build())
-            .addAction(Notification.Action.Builder(null, "Stop", action(STOP, 2)).build()).build()
+        return Notification.Builder(this, CHANNEL)
+            .setSmallIcon(android.R.drawable.ic_media_play)
+            .setContentTitle(strings.getString(R.string.notification_running))
+            .setContentText(strings.getString(if (bypassed) R.string.notification_bypassed else R.string.notification_active))
+            .setContentIntent(content)
+            .setOngoing(true)
+            .addAction(Notification.Action.Builder(null, strings.getString(if (bypassed) R.string.resume else R.string.bypass), action(BYPASS, 1)).build())
+            .addAction(Notification.Action.Builder(null, strings.getString(R.string.stop), action(STOP, 2)).build())
+            .build()
     }
     override fun onDestroy() {
         generation++

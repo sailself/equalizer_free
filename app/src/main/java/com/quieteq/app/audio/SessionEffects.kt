@@ -16,7 +16,7 @@ internal class SessionEffects private constructor(
     private val loudness: LoudnessEnhancer?,
     private val virtualizer: Virtualizer?,
     val capabilities: AudioCapabilities,
-    val backend: String,
+    val backend: AudioBackend,
 ) {
     val hasControl: Boolean get() = runCatching { effect.hasControl() }.getOrDefault(false)
     private var secondaryFailed = false
@@ -68,7 +68,7 @@ internal class SessionEffects private constructor(
                         .setLimiterAllChannelsTo(DynamicsProcessing.Limiter(true, true, 0, 1f, 60f, 20f, -1f, 0f)).build()
                     dp = DynamicsProcessing(0, session, config)
                     val virtualizer = tryVirtualizer(session).also { secondary = it }
-                    return SessionEffects(dp, dp, null, null, virtualizer, AudioCapabilities(dynamicsProcessing = true, equalizer = true, bass = true, loudness = true, balance = dp.channelCount >= 2, virtualizer = virtualizer != null, virtualizerStrength = virtualizer?.strengthSupported == true, bandFrequenciesHz = BAND_FREQUENCIES_HZ, gainRangeDb = -12f to 12f, availableEffects = advertised), "Dynamics Processing")
+                    return SessionEffects(dp, dp, null, null, virtualizer, AudioCapabilities(dynamicsProcessing = true, equalizer = true, bass = true, loudness = true, balance = dp.channelCount >= 2, virtualizer = virtualizer != null, virtualizerStrength = virtualizer?.strengthSupported == true, bandFrequenciesHz = BAND_FREQUENCIES_HZ, gainRangeDb = -12f to 12f, availableEffects = advertised), AudioBackend.DYNAMICS_PROCESSING)
                 } catch (e: Exception) { runCatching { secondary?.release() }; runCatching { dp?.release() }; Log.w("QuietEQ", "DynamicsProcessing unavailable for session $session", e) }
             }
             var eq: Equalizer? = null
@@ -80,7 +80,7 @@ internal class SessionEffects private constructor(
                 val virtualizer = tryVirtualizer(session).also { secondaryVirtualizer = it }
                 val frequencies = (0 until eq.numberOfBands.toInt()).map { eq.getCenterFreq(it.toShort()) / 1000 }
                 val range = eq.bandLevelRange
-                return SessionEffects(eq, null, eq, loudness, virtualizer, AudioCapabilities(equalizer = true, bass = true, loudness = loudness != null, virtualizer = virtualizer != null, virtualizerStrength = virtualizer?.strengthSupported == true, bandFrequenciesHz = frequencies, gainRangeDb = range[0] / 100f to range[1] / 100f, availableEffects = advertised, unsupportedReason = "Legacy equalizer cannot control stereo balance or guarantee headroom"), "Legacy Equalizer")
+                return SessionEffects(eq, null, eq, loudness, virtualizer, AudioCapabilities(equalizer = true, bass = true, loudness = loudness != null, virtualizer = virtualizer != null, virtualizerStrength = virtualizer?.strengthSupported == true, bandFrequenciesHz = frequencies, gainRangeDb = range[0] / 100f to range[1] / 100f, availableEffects = advertised, unsupportedReason = "Legacy equalizer cannot control stereo balance or guarantee headroom"), AudioBackend.LEGACY_EQUALIZER)
             } catch (e: Exception) { runCatching { secondaryVirtualizer?.release() }; runCatching { secondaryLoudness?.release() }; runCatching { eq?.release() }; Log.w("QuietEQ", "Equalizer unavailable for session $session", e); return null }
         }
         private fun tryVirtualizer(session: Int) = runCatching { Virtualizer(0, session) }.getOrNull()

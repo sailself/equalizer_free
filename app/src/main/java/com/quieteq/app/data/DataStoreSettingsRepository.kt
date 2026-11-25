@@ -19,6 +19,8 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.intOrNull
 
 private val Context.settingsStore by preferencesDataStore(name = "quiet_eq")
 private val SETTINGS_KEY = stringPreferencesKey("settings_v1")
@@ -70,7 +72,12 @@ class DataStoreSettingsRepository(context: Context, private val scope: Coroutine
     }
     suspend fun modifyPreferences(transform: (AppSettings) -> AppSettings) = mutate { current ->
         val changed = transform(current)
-        current.copy(theme = changed.theme, showVolume = changed.showVolume, showReverb = changed.showReverb)
+        current.copy(
+            theme = changed.theme,
+            showVolume = changed.showVolume,
+            showReverb = changed.showReverb,
+            palette = changed.palette,
+        )
     }
     override suspend fun updatePreferences(theme: ThemeMode, showVolume: Boolean, showReverb: Boolean) = mutate {
         it.copy(theme = theme, showVolume = showVolume, showReverb = showReverb)
@@ -163,7 +170,6 @@ internal fun parseBackup(json: String): AppSettings {
     require(boundedDepth(json, 32)) { "Backup nesting is too deep" }
     validateBackupShape(codec.parseToJsonElement(json))
     val backup = codec.decodeFromString(Backup.serializer(), json)
-    require(backup.version == 1) { "Unsupported backup version" }
     validateSettings(backup.settings)
     return backup.settings
 }
@@ -174,7 +180,8 @@ internal fun parseBackup(json: String): AppSettings {
 
 internal fun encodeBackup(settings: AppSettings): String {
     validateSettings(settings)
-    return codec.encodeToString(Backup.serializer(), Backup(version = 1, settings = settings))
+    val version = if (settings.palette == ThemePalette.ORIGINAL) 1 else 2
+    return codec.encodeToString(Backup.serializer(), Backup(version, settings))
 }
 
 
@@ -206,7 +213,12 @@ private fun requireObjectKeys(value: kotlinx.serialization.json.JsonElement?, ke
 }
 private fun validateBackupShape(value: kotlinx.serialization.json.JsonElement) {
     val root = requireObjectKeys(value, setOf("version", "settings"))
-    val settings = requireObjectKeys(root["settings"], settingsKeys)
+    val fields = when ((root["version"] as? JsonPrimitive)?.intOrNull) {
+        1 -> settingsKeys
+        2 -> settingsKeys + "palette"
+        else -> throw IllegalArgumentException("Unsupported backup version")
+    }
+    val settings = requireObjectKeys(root["settings"], fields)
     requireObjectKeys(settings["audio"], audioKeys)
     val profiles = settings["profiles"]
     require(profiles is JsonArray && profiles.size <= MAX_PROFILES) { "Invalid profiles" }

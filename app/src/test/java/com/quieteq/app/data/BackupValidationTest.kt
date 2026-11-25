@@ -28,7 +28,7 @@ class BackupValidationTest {
     }
     @Test fun rejectsMissingAndUnknownVersions() {
         assertThrows(Exception::class.java) { parseBackup("""{"settings":{}}""") }
-        assertThrows(Exception::class.java) { parseBackup("""{"version":2,"settings":{}}""") }
+        assertThrows(Exception::class.java) { parseBackup("""{"version":99,"settings":{}}""") }
         assertThrows(Exception::class.java) { parseBackup("""{"version":1,"settings":{}}""") }
     }
     @Test fun roundTripPreservesAllSettingsAndAssignments() {
@@ -37,8 +37,25 @@ class BackupValidationTest {
             virtualizer = 62, attachmentMode = AttachmentMode.GLOBAL, frameDurationMs = 25f)
         val p = Profile("my_profile", "My profile", audio)
         val original = AppSettings(audio = audio.copy(bass = 45), profiles = listOf(p), selectedProfileId = p.id,
-            assignments = mapOf("AA:BB:CC:DD:EE:FF" to p.id), theme = ThemeMode.LIGHT, showVolume = false, showReverb = true)
+            assignments = mapOf("AA:BB:CC:DD:EE:FF" to p.id), theme = ThemeMode.LIGHT,
+            showVolume = false, showReverb = true, palette = ThemePalette.OCEAN)
         assertEquals(original, parseBackup(encodeBackup(original)))
+    }
+    @Test fun originalPaletteKeepsVersionOneBackupCompatible() {
+        val original = AppSettings(profiles = defaultProfiles, theme = ThemeMode.LIGHT)
+        val versionOne = encodeBackup(original)
+        assertTrue(versionOne.startsWith("""{"version":1,"settings":"""))
+        assertFalse(versionOne.contains("\"palette\""))
+        assertEquals(original, parseBackup(versionOne))
+
+        val versionTwo = encodeBackup(original.copy(palette = ThemePalette.FOREST))
+        assertTrue(versionTwo.startsWith("""{"version":2,"settings":"""))
+        assertThrows(IllegalArgumentException::class.java) {
+            parseBackup(versionTwo.replace(",\"palette\":\"FOREST\"", ""))
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            parseBackup(versionTwo.replace("\"version\":2", "\"version\":1"))
+        }
     }
     @Test fun malformedImportNeverCallsWrite() = runBlocking {
         val initial = AppSettings(profiles = defaultProfiles)
