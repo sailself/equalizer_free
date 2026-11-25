@@ -8,7 +8,7 @@ android {
     namespace = "com.quieteq.app"
     compileSdk { version = release(37) { minorApiLevel = 0 } }
     buildToolsVersion = "37.0.0"
-    defaultConfig { applicationId = "com.quieteq.app"; minSdk = 31; targetSdk = 37; versionCode = 1; versionName = "1.0"; testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner" }
+    defaultConfig { applicationId = "com.quieteq.app"; minSdk = 31; targetSdk = 37; versionCode = 2; versionName = "1.0.0"; testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner" }
     signingConfigs {
         if (signingValues.all { !it.isNullOrBlank() }) create("release") {
             storeFile = file(signingValues[0]!!)
