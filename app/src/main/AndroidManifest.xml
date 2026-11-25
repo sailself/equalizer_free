@@ -4,12 +4,15 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
-    <application android:icon="@drawable/ic_quiet_eq" android:roundIcon="@drawable/ic_quiet_eq" android:allowBackup="false" android:dataExtractionRules="@xml/data_extraction_rules" android:fullBackupContent="@xml/backup_rules" android:label="Quiet EQ" android:theme="@android:style/Theme.Material.Light.NoActionBar" android:supportsRtl="true">
+    <application android:icon="@drawable/ic_quiet_eq" android:roundIcon="@drawable/ic_quiet_eq" android:allowBackup="false" android:dataExtractionRules="@xml/data_extraction_rules" android:fullBackupContent="@xml/backup_rules" android:label="@string/app_name" android:localeConfig="@xml/app_locales" android:theme="@style/Theme.AppCompat.Light.NoActionBar" android:supportsRtl="true">
         <activity android:name=".MainActivity" android:exported="true">
             <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
         </activity>
         <service android:name=".audio.AudioService" android:exported="false" android:foregroundServiceType="specialUse">
             <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" android:value="User-controlled audio equalization for active playback sessions" />
+        </service>
+        <service android:name="androidx.appcompat.app.AppLocalesMetadataHolderService" android:enabled="false" android:exported="false">
+            <meta-data android:name="autoStoreLocales" android:value="true" />
         </service>
     </application>
 </manifest>

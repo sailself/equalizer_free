@@ -35,3 +35,19 @@ Local raw logs and captures are in ignored `artifacts/`; no device serials, Blue
 ```
 
 The four device tests ran before the final system-bar/color-only correction; that correction was validated visually on the final signed release. Unit tests and release lint were rerun for the final build.
+
+## Language and palette update
+
+Verified on the Pixel 9 Pro (Android 17, API 37) on 2026-11-25.
+
+- The signed, minified update installed over the previous release. The app UID, selected preset, and appearance preferences survived. The installed APK matched the local build's SHA-256.
+- The Settings picker switched among all six languages. French, Lavender, and Light persisted after a process restart. The device language option reset the per-app language preference.
+- The rendered backgrounds matched Ocean Dark, Forest Dark, and Lavender Light.
+- Dynamics Processing attached to global session 0. Switching to French updated the foreground notification while the audio process remained active. Bypass, Resume, and Stop worked from the French notification. The original appearance, preset, and stopped engine state were restored.
+- All 14 JVM unit tests passed. Release lint reported zero errors. An audible A/B comparison remains pending for this build.
+
+The deployed APK is `artifacts/live-20261125214715/Quiet-EQ-1.0-localized.apk`. The previous installed APK is saved in the same directory as `previous-base.apk`.
+
+```text
+918811e952d345292a60678e052553c4f78c3ca48a2363a06e31a92245c4a714
+```
