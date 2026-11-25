@@ -31,6 +31,8 @@ Set `ANDROID_HOME`, or add an ignored `local.properties` with `sdk.dir=C\:/path/
 
 Debug output: `app/build/outputs/apk/debug/app-debug.apk`. Unit results: `app/build/reports/tests/`. Lint reports: `app/build/reports/`.
 
+GitHub Actions runs unit tests, debug and release lint, and debug APK builds on pull requests to `main` and pushes to `main`. Download the debug APK and reports from the CI run. CI also compiles the instrumentation APK for device testing.
+
 ## Release signing
 
 Use a private keystore outside this repository. The release Gradle configuration reads `QUIET_EQ_KEYSTORE`, `QUIET_EQ_KEY_ALIAS`, `QUIET_EQ_STORE_PASSWORD`, and `QUIET_EQ_KEY_PASSWORD`; never commit them.
@@ -43,6 +45,37 @@ adb install -r app/build/outputs/apk/release/app-release.apk
 ```
 
 A debug installation and a release installation have different signing keys. Export profiles before uninstalling a debug version to switch to the release APK. Ordinary same-key updates preserve data.
+
+## Publish a release
+
+For a new version, update `versionName` and increment `versionCode` in `app/build.gradle.kts`. Merge the version change through a pull request and check CI for that commit. The release tag uses the APK version, for example `v1.1.0`.
+
+### Sign locally and upload
+
+Use this path to keep the signing key on your workstation. Run from the updated `main` checkout and use a new version tag.
+
+```powershell
+$ErrorActionPreference = 'Stop'
+.\scripts\build.ps1 -Release
+$version = '1.1.0'  # Match versionName in app/build.gradle.kts
+$name = "Quiet-EQ-$version.apk"
+$apk = "artifacts/$name"
+New-Item -ItemType Directory -Path artifacts -Force | Out-Null
+Copy-Item -LiteralPath app/build/outputs/apk/release/app-release.apk -Destination $apk
+$digest = (Get-FileHash -LiteralPath $apk -Algorithm SHA256).Hash.ToLowerInvariant()
+"$digest  $name" | Set-Content -LiteralPath "$apk.sha256" -Encoding ascii
+gh release create "v$version" $apk "$apk.sha256" --target (git rev-parse HEAD) --generate-notes
+```
+
+### Sign and publish on GitHub Actions
+
+Restrict the GitHub Actions environment named `release` to the `main` branch. Add the following secrets to that environment using the existing release key.
+
+- `QUIET_EQ_KEYSTORE_BASE64` contains the base64-encoded keystore file.
+- `QUIET_EQ_KEY_ALIAS` identifies the release key.
+- `QUIET_EQ_STORE_PASSWORD` and `QUIET_EQ_KEY_PASSWORD` unlock the keystore and key.
+
+Set the environment variable `QUIET_EQ_SIGNING_CERT_SHA256` to the public certificate fingerprint reported by `apksigner verify --print-certs` on a known-good release APK. Then run **Actions → Release APK → Run workflow** on `main` as the repository owner. The workflow verifies the signing certificate, publishes the APK and its SHA-256 file, and checks both the release tag and the downloaded APK.
 
 ## Structure and verification
 

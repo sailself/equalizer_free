@@ -1,0 +1,157 @@
+name: Release APK
+
+on: workflow_dispatch
+
+permissions:
+  contents: read
+
+concurrency:
+  group: quiet-eq-release
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  sign:
+    name: Build and verify signed APK
+    if: github.ref == 'refs/heads/main' && github.actor == github.repository_owner && github.triggering_actor == github.repository_owner
+    runs-on: ubuntu-24.04
+    environment: release
+    timeout-minutes: 25
+    outputs:
+      tag: ${{ steps.sign.outputs.tag }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-android
+        with:
+          cache-disabled: 'true'
+      - name: Build and verify the signed release
+        id: sign
+        env:
+          QUIET_EQ_KEYSTORE_BASE64: ${{ secrets.QUIET_EQ_KEYSTORE_BASE64 }}
+          QUIET_EQ_KEY_ALIAS: ${{ secrets.QUIET_EQ_KEY_ALIAS }}
+          QUIET_EQ_STORE_PASSWORD: ${{ secrets.QUIET_EQ_STORE_PASSWORD }}
+          QUIET_EQ_KEY_PASSWORD: ${{ secrets.QUIET_EQ_KEY_PASSWORD }}
+          QUIET_EQ_SIGNING_CERT_SHA256: ${{ vars.QUIET_EQ_SIGNING_CERT_SHA256 }}
+        run: |
+          set -u
+          for name in QUIET_EQ_KEYSTORE_BASE64 QUIET_EQ_KEY_ALIAS QUIET_EQ_STORE_PASSWORD QUIET_EQ_KEY_PASSWORD QUIET_EQ_SIGNING_CERT_SHA256; do
+            if [[ -z "${!name:-}" ]]; then
+              echo "::error::Configure $name in the release environment to enable hosted signing."
+              exit 1
+            fi
+          done
+
+          keystore=$(mktemp "$RUNNER_TEMP/quiet-eq-keystore.XXXXXX")
+          trap 'rm -f -- "$keystore"' EXIT
+          printf '%s' "$QUIET_EQ_KEYSTORE_BASE64" | base64 --decode > "$keystore"
+          unset QUIET_EQ_KEYSTORE_BASE64
+          export QUIET_EQ_KEYSTORE="$keystore"
+
+          ./gradlew --no-daemon --console=plain :app:testDebugUnitTest :app:lintRelease :app:assembleRelease
+          apk=app/build/outputs/apk/release/app-release.apk
+          build_tools="$ANDROID_HOME/build-tools/37.0.0"
+          cert=$("$build_tools/apksigner" verify --print-certs "$apk" |
+            sed -nE 's/^.*certificate SHA-256 digest: ([[:xdigit:]]{64})[[:space:]]*$/\1/p' |
+            tr '[:upper:]' '[:lower:]' | sort -u)
+          if [[ ! "$cert" =~ ^[0-9a-f]{64}$ || "$cert" != "${QUIET_EQ_SIGNING_CERT_SHA256,,}" ]]; then
+            echo "::error::The APK signature does not match the Quiet EQ release certificate."
+            exit 1
+          fi
+
+          version=$("$build_tools/aapt2" dump badging "$apk" |
+            sed -nE "s/^package: name='com[.]quieteq[.]app' versionCode='[1-9][0-9]*' versionName='([0-9]+[.][0-9]+([.][0-9]+)?)'.*/\1/p")
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]; then
+            echo "::error::The release APK must have a positive version code and a numeric MAJOR.MINOR[.PATCH] version name."
+            exit 1
+          fi
+
+          dist="$RUNNER_TEMP/quiet-eq-release"
+          mkdir -p "$dist"
+          name="Quiet-EQ-${version}.apk"
+          cp "$apk" "$dist/$name"
+          (cd "$dist" && sha256sum "$name" > "$name.sha256")
+          echo "tag=v$version" >> "$GITHUB_OUTPUT"
+      - name: Upload signed APK and checksum
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: quiet-eq-release
+          path: ${{ runner.temp }}/quiet-eq-release/
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    name: Publish GitHub release
+    needs: sign
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: quiet-eq-release
+          path: ${{ runner.temp }}/quiet-eq-release/
+      - name: Publish and verify the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ needs.sign.outputs.tag }}
+        run: |
+          set -u
+          cd "$RUNNER_TEMP/quiet-eq-release"
+          apk="Quiet-EQ-${RELEASE_TAG#v}.apk"
+          checksum="$apk.sha256"
+          sha256sum --check "$checksum"
+
+          tag_commit() {
+            local ref="refs/tags/$RELEASE_TAG" refs
+            refs=$(git ls-remote "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git" "$ref" "$ref^{}") || return
+            awk '/\^\{\}$/ { peeled = $1; next } { commit = $1 }
+                 END { print (peeled != "" ? peeled : commit) }' <<< "$refs"
+          }
+
+          target=$(tag_commit)
+          if [[ -n "$target" && "$target" != "$GITHUB_SHA" ]]; then
+            echo "::error::$RELEASE_TAG already points to a different commit. Choose a new version."
+            exit 1
+          fi
+
+          releases=$(gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/releases?per_page=100")
+          release=$(jq -c --arg tag "$RELEASE_TAG" '[.[][] | select(.tag_name == $tag)] |
+            if length > 1 then error("Multiple matching releases") else .[0] // empty end' <<< "$releases")
+
+          published=false
+          if [[ -z "$release" ]]; then
+            gh release create "$RELEASE_TAG" --draft --target "$GITHUB_SHA" \
+              --title "Quiet EQ ${RELEASE_TAG#v}" --generate-notes
+          elif [[ "$(jq -r '.draft' <<< "$release")" == false ]]; then
+            published=true
+          elif [[ "$(jq -r '.target_commitish' <<< "$release")" != "$GITHUB_SHA" ]]; then
+            echo "::error::The existing draft does not target this commit."
+            exit 1
+          fi
+
+          if [[ "$published" == false ]]; then
+            gh release upload "$RELEASE_TAG" "$apk" "$checksum" --clobber
+            gh release edit "$RELEASE_TAG" --draft=false
+          fi
+
+          if [[ "$(tag_commit)" != "$GITHUB_SHA" ]]; then
+            echo "::error::The published tag does not point to the release commit."
+            exit 1
+          fi
+          verified=$(mktemp -d "$RUNNER_TEMP/quiet-eq-verify.XXXXXX")
+          gh release download "$RELEASE_TAG" --pattern "$apk" --pattern "$checksum" --dir "$verified"
+          cmp "$checksum" "$verified/$checksum"
+          (cd "$verified" && sha256sum --check "$checksum")
+          url=$(gh release view "$RELEASE_TAG" --json url,isDraft --jq 'select(.isDraft == false) | .url')
+          if [[ -z "$url" ]]; then
+            echo "::error::The release is still a draft."
+            exit 1
+          fi
+          printf 'Verified release %s\n' "$url"
